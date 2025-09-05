@@ -1,0 +1,67 @@
+* Build a spring boot docker image
+.\mvnw spring-boot:build-image
+
+* save docker image as a tar
+docker save -o qulron-yms-backend.tar qulron-yms-backend:1.0.0
+
+* load the image
+docker load -i qulron-yms-backend.tar
+
+* running a container 
+
+sudo docker run -d \
+  --name osrm-nj \
+  --restart=always \
+  -p 5000:5000 \
+  -v "${PWD}:/data" \
+  --memory=1.2g \
+  ghcr.io/project-osrm/osrm-backend \
+  osrm-routed --algorithm mld /data/new-jersey-latest.osrm
+
+** -d : for deattached mode
+** --restart=always : so it always starts if stopped or device restarted
+** -p : port mapping  outside (host) : inside (container)
+** -v : Mounts a volume from your host machine to the container ,,, "${PWD}:/data"  ,,, this means current directory in host to the data folder in container
+** --memory=1.2g : limit max memory
+** ghcr.io/project-osrm/osrm-backend : this is the image
+** osrm-routed --algorithm mld /data/new-jersey-latest.osrm : commands to run
+
+* get in the container
+docker exec -it osrm-nj bash
+
+* checking running containers
+docker ps
+
+* stats like cpu memory of containers
+docker stats
+
+* stopping container
+docker stop osrm-nj
+
+* removing container
+docker rm osrm-nj
+
+* Logs of a container
+docker logs osrm-nj
+
+* Logs in active mode
+sudo docker logs -f qulron-backend
+
+* list docker images
+docker images
+
+*
+docker rmi IMAGE_ID
+
+* Build image from docker file
+docker build -t osrm-image .
+
+** -t : tag of image
+** . : since docker file is within the same folder we are executing command
+
+
+
+docker compose up -d      # start container in detached mode
+docker compose down        # stop container
+docker compose ps          # see running containers
+docker compose logs -f     # follow logs

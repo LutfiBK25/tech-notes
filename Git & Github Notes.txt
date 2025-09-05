@@ -1,0 +1,129 @@
+####Git Notes
+
+# config email and name
+$ git config --global user.name "Lutfi Alfawadleh"
+$ git config --global user.email lutfibk25@gmail.com
+
+# make branch default is main
+$ git config --global init.default branch main
+
+# Help with git config
+$git config -h
+$git help config
+
+##Go in Project
+
+# Initilize Repo (Create .git folder hidden)
+$ git init 
+
+# Repo stats (which branch, tracked/untracked files)
+$ git status
+
+# To track a file
+$ git add index.html
+
+# To unTrack a file
+$ git rm --cached index.html
+
+# Create a file .gitignore
+######
+# ignore all .txt files
+*.txt
+
+# ignore secret.word
+secret.word
+######
+
+# To Track all files (They are in staging area)
+$ git add .
+
+# Point of History
+$ git commit -m "first commit - committing all files"
+
+
+# Show the change post commit
+$ git diff 
+
+#everytime you want to add somthing you do Add (Staging)then Commit(Point of History) 
+
+# To Remove a file from staging for the next commit
+$ git restore --staged index.html
+
+
+# Skip over stagging (Add) and Directly through commit
+$git commit -a -m "Updated Fast"
+
+# Delete a file with git
+$ git rm "secret_file.txt"
+
+# restoring a file 
+$git restore "secret_file.txt"
+
+# moving from old filename to new filename
+$ git mv "secret_file.txt" "new_secret.txt"
+
+$ git commit -m "New File Name"
+
+# Review of all actions
+$ git log
+$ git log --oneline
+
+# Change last commit message
+$ git commit -m "Changed File Name again" --amend
+
+# log in details (q to exit view, move with arrows)
+$ git log -p
+
+# jump to previous commit (by commit Hash)
+$ git reset c325265
+
+# Editor that u see all commits and change the apperance (Press : Key then X)
+$ git rebase -i --root
+
+# Branch : copy of the main branch with the same entries, make changes then merge it back to the main branch
+
+# create a new branch
+$ git branch FixSomthing
+
+# list branches (* indicate which branch is active)
+$ git branch
+
+# To Switch branch
+$ git switch FixSomthing
+
+# Check status of branch same as before
+$ git status  
+
+# Commit to a branch
+$ git commit -a -m "Fixed a problem"
+
+# To merge a branch go to main while in main do the following(FixSomthing is the branch"
+$ git merge -m "Merge branch to main" FixSomthing
+
+# Delete a Branch
+$ git branch -d FixSomthing
+
+# Merge Conflict: When you branch off main but main changed before you merging your branch
+2 changes made to the same file
+merge will fail since there is a conflict
+we remove head and data
+and remove data at bottom
+
+#### Github Notes
+Create a new repo then 
+open your folder if never got git then do add and commit
+ git remote add origin https://github.com/LutfiBK25/qulron-yms-backend.git <--set the repository
+ git branch -M main <-- to create main branch
+  git push -u origin main <-- to push all contents
+  
+### Forcing the push  
+ git push -u origin main --force
+
+### Undo latest commit and discard changes
+git reset --hard HEAD~1
+
+### Push all branches
+git push --all
+
+
+git fetch + get merge = git pull
