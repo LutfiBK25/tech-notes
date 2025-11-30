@@ -1,0 +1,581 @@
+PS SQL Notes: (Postgres is here being used with Debian bookworm)
+
+# Downloading Postgres 17
+
+## ensures that you have curl available and that it can properly verify HTTPS certificates when connecting to secure websites.
+sudo apt install curl ca-certificates
+
+## creates the directory /usr/share/postgresql-common/pgdg (with root permissions) if it doesn’t already exist. This directory is typically used to store PostgreSQL APT repository configuration files or scripts.
+sudo install -d /usr/share/postgresql-common/pgdg
+
+## It downloads PostgreSQL’s official APT repository GPG key and stores it in /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc.
+
+sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+
+## Create the repository configuration file ,It registers the official PostgreSQL APT repository on your system:
+. /etc/os-release
+sudo sh -c "echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main' > /etc/apt/sources.list.d/pgdg.list"
+
+## Update package List
+sudo apt update
+
+## Download Postgres
+sudo apt install postgresql-17
+
+# Check PostgreSQL is running
+systemctl status PostgreSQL
+
+# Check PostgreSQL is running
+systemctl restart PostgreSQL
+
+# Check Postgres Processes and PID
+ps -ef | grep postgres*
+
+# Kill a process is not advisable but here is how
+kill -9 <PID>
+
+# Assign a password for postgres user
+sudo passwd postgres
+
+# Login as postgres user
+su - postgres
+
+# Postgress Directories
+
+/usr/lib/postgresql/17/bin/        # executables
+/usr/bin/                          # version-independent wrappers
+/etc/postgresql/17/main/           # configs
+/var/lib/postgresql/17/main/       # data
+	base/         # actual database files
+	global/       # cluster-wide data
+	pg_wal/       # write-ahead logs (wal files)
+/var/log/postgresql/               # logs
+/run/postgresql/                   # socket + pid
+/usr/share/postgresql-common/      # cluster mgmt scripts
+/usr/share/postgresql/17/          # SQL & contrib extensions
+
+# Reload vs Restart
+## Restart : Will have downtime
+pg_ctl restart   
+
+## Reload : Will have no downtime
+pg_ctl reload
+
+
+# Configuring Network Connection to the DB
+## Listen address in postgresql.conf (/etc/postgresql/17/main)(10.15.109.32 is the server address of postgres)
+listen_addresses = '10.15.109.32'
+
+## Whitelisting Clients in pg_hba.conf (/etc/postgresql/17/main)
+# API server (static IP)
+host    all    all    10.15.109.2/32    md5
+
+# pgAdmin device (any IP in 172.21.107.x subnet)
+host    all    all    172.21.107.0/24   md5
+
+# Change Postgres DB Password
+## Login as postgres
+sudo -i -u postgres
+
+## enter sql
+psql
+
+## Alter in PSQL  
+ALTER USER postgres WITH PASSWORD 'YourStrongPassword';
+
+# Create an admin Role in (PSQL)
+CREATE ROLE <user_id> WITH LOGIN CREATEDB CREATEROLE PASSWORD 'your_strong_password';
+
+# Create a role for API
+CREATE ROLE <user_id> WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD 'strong_api_password';
+
+# Check who am i
+SELECT current_user;
+
+# Connecting to the database remotely
+
+psql -h <hostname> -p <port> -U <username> -d <database>
+
+# Connecting to DB within Server
+
+psql -U <User> -d <Database> -W
+
+# Check Current Env i am in
+\conninfo
+
+# Check Current Database
+SELECT current_database();
+
+# Create A User
+CREATE USER myuser WITH PASSWORD 'mypassword';
+
+# Check all Users
+\du
+
+# To quit any view
+\q
+
+# Clear command line
+\! clear
+
+# Lists all relations (tables, views, sequences) in the current database.
+\d
+
+# Check if auto commit is on
+\echo :AUTOCOMMIT
+
+# to change auto commit to 'ON' or 'OFF'
+\set AUTOCOMMIT on    -- turn on
+\set AUTOCOMMIT off   -- turn off
+
+
+# Creating Tables and Indexes Sample and constraint to friegn keys
+CREATE TABLE t_order (
+    order_id BIGSERIAL PRIMARY KEY,
+    order_number VARCHAR(30) NOT NULL,
+    status VARCHAR(10) NOT NULL,
+	warehouse VARCHAR(30) NOT NULL,
+    warehouse_code VARCHAR(5) NOT NULL,
+	warehouse_address VARCHAR(100) NOT NULL,
+	customer_name  VARCHAR(100) NOT NULL,
+	customer_address  VARCHAR(100) NOT NULL,
+    record_create_id VARCHAR(30) NOT NULL,
+    record_create_date TIMESTAMP NOT NULL,
+    record_update_id VARCHAR(30),
+    record_update_date TIMESTAMP
+);
+-- indexes for better performance
+CREATE INDEX idx_order_order_number ON t_order(order_number);
+CREATE INDEX idx_order_status ON t_order(status);
+
+
+-- CREATE Trailer Table
+CREATE TABLE t_trailer(
+    trailer_id BIGSERIAL PRIMARY KEY,
+    trailer_number VARCHAR(30),
+    lm_id BIGINT NOT NULL,
+    record_create_id VARCHAR(30) NOT NULL,
+    record_create_date TIMESTAMP NOT NULL,
+    record_update_id VARCHAR(30),
+    record_update_date TIMESTAMP,
+    CONSTRAINT fk_trailer_load_master
+        FOREIGN KEY(lm_id) REFERENCES t_load_master(lm_id)
+);
+
+CREATE INDEX idx_trailer_lm_id ON t_trailer(lm_id);
+
+# Grant Privilage For A User on A Table
+GRANT SELECT ON TABLE t_yard_location TO qulronwebapp;
+GRANT ALL PRIVILEGES ON TABLE t_driver_location TO qulronwebapp;
+
+# Grant Privilage on A Sequence (BIGSERIAL Primary Key) for User
+# Grants for sequences (auto-generated by BIGSERIAL)
+GRANT USAGE, SELECT ON SEQUENCE t_open_load_ol_id_seq TO qulronwebapp;
+
+
+# Check if AutoVacume is ON
+SHOW autovacuum;
+
+# These control how many row changes trigger ANALYZE or VACUUM. (For Indexing)
+SHOW autovacuum_analyze_scale_factor;
+SHOW autovacuum_vacuum_scale_factor;
+
+autovacuum_analyze_scale_factor = 0.1 means PostgreSQL will trigger an ANALYZE on a table when ~10% of its rows
+autovacuum_vacuum_scale_factor = 0.2 means A VACUUM will run when ~20% of the rows have changed.
+
+
+# Create a DB
+CREATE DATABASE my_new_db;
+
+# Grant connect to DB
+GRANT CONNECT ON DATABASE my_new_db TO <user_id>;
+
+# Allow access to schema
+GRANT USAGE ON SCHEMA public TO <user_id>;
+
+#PSQL Commands
+\l --> List all databases
+
+\x --> Extended Display (On/Off)
+
+\! cls --> clear database
+
+\dt --> List all databases, \dt+ more information
+
+\d accounts --> description of a table, 'accounts' is the example table name, \d+ accounts will display more information
+
+\di --> List all indexes
+
+\dv --> List all views
+
+\ds --> List all sequences
+
+\df --> List all functions
+
+## we can add + to any of them for more information
+
+\ef functionName1 --> will show functions to edit a function
+
+\e --> will open the last query with mistake to edit and save and will excute it
+
+\du --> display all users and roles
+
+\g --> will execute the prev sucessful query
+
+\c qulron-db --> switch from one db to another
+
+\conninfo --> shows connection info
+
+\timing --> to see how much time it takes to exec query 
+
+
+-- to execute a file in psql
+psql -U Someuser -d somedatabase -f employee.sql
+
+
+-- put the next query result in a file
+\o employee.txt
+Select * from employees where age <49
+
+Connecting with file and use it for authentication PgPass File
+nano .pgpass
+
+localhost:5432:postgresDB:user1:password1
+
+save file
+
+psql -h <hostname> -p <port> -U <username> -d <database> -p 5432
+
+to secure file
+chmod 0600 .pgass
+
+
+
+if you dont want to save pgpass in home u can use this
+pgpassfile <path>
+
+--there is also this way (session level)
+export PGPASSWORD 'ABC'
+
+
+customize psql: create and save this file and look up customization .psqlrc in homeSELE
+
+-- check activity
+SELECT * FROM pg_stat_activity; 
+-- check activity
+SELECT * FROM pg_locks;
+-- how a database is being used
+SELECT * FROM pg_stat_database; 
+-- system table
+SELECT * FROM pg_settings
+-- database info 
+SELECT * FROM pg_database;
+-- tables info
+SELECT * FROM pg_tables;
+-- indexs info
+SELECT * FROM pg_indexes;
+-- views info
+SELECT * FROM pg_views;
+-- all avaialble extensions
+SELECT * FROM pg_available_extensions;
+-- available operators
+SELECT * FROM pg_operator;
+
+-- will set autocommit off
+\set AUTOCOMMIT off
+
+
+-- Transaction Update
+BEGIN;
+
+SAVEPOINT my_save_point -- start of save point
+
+ROLLBACK TO my_save_point --> goes back to a save point
+
+COMMIT
+
+
+
+ACID is a set of four properties—Atomicity, Consistency, Isolation, and Durability
+
+Atomicity: This is an "all or nothing" principle. A transaction is treated as a single, indivisible unit of work.
+If any part of the transaction fails, the entire transaction is rolled back,
+and the database remains unchanged, as if the transaction never happened.
+ 
+Consistency: A transaction must bring the database from one valid state to another.
+It ensures that any data written to the database must be valid according to all defined rules and constraints,
+preserving database invariants. 
+
+Isolation: This property ensures that concurrent transactions do not interfere with each other's execution.
+Each transaction operates as if it is the only one running, preventing the results of an uncommitted
+transaction from being visible to other transactions. 
+
+Durability: Once a transaction has been successfully committed,
+its changes are permanent and will persist even in the event of a system failure,
+such as a power loss. In a distributed system, this typically means the data is replicated to multiple nodes. 
+
+
+Postgres Table Inheritance and Partitioning goes together
+
+Partitioning methods : Range, Hash and List
+
+we can copy table and we can copy or not copy the data with it
+we can copy table to a csv
+we can copy table from csv to a table
+we can copy queries to csv
+
+Tables spaces to distribute data among drivers and folders
+we can move tables accross tables spaces
+there is a temp table space for temp tables and sorting
+
+Backup and restorting
+
+******** Logical Backup ********
+to back up a specfic database
+pg_dump
+to back up all user databases
+pg_dump_all
+
+backing a database into a file
+pg_dump -U userName someDatabase > filename.sql
+
+we can have a filter.txt file to filter what is backed up
+pg_dump --filter = filter.txt -U userName someDatabase > filename.sql
+
+we can compact the file that gets backed up, only downside the compression might consume alot of resources during compaction
+
+to restore
+cat filename.sql | psql -U user1 -d micro
+psql -d micro -f singledb.sql
+
+pg_restore -U user -Fc -d micro<demodb.tar
+
+
+to restore a table
+psql -d micro -U user < singletab.sql
+
+pg_restore -U micro -t table_name -d db_name /backup/singletable.dump
+
+
+******** File system Backup ********
+DB should be offline
+Not for production
+Everyone should be disconnected
+Not prefered
+
+tar -cvzf backup.tar <data directory>
+
+******** Online Backup ********
+Better for transactions and production
+
+System is up and avaialble
+
+******************* Low Level Api Backup *******************
+--tell postgres we are backing up
+SELECT pg_backup_start(label => 'label', fast =>false);
+
+** dont exit the session , open another session to take the back up
+-- take backup
+tar -cvzf backup.tar <directory of data>
+
+--tell postgres we completed backup and stop backup mode (we pick one of two)
+SELECT pg_stop_backup();
+SELECT pg_backup_stop(wait_for_archive => true); --> we use this if we want the current wal file also included
+
+******************* pg_basbackup *******************
+
+-D directory recieve base backup into directory, where backup will be
+-F format p|t  (plain or tar)
+-i take incremental backup
+-r maximum transfer rate to transfer data directory
+-t backup target
+-T relocate tablespace in OLDDIR to NEWDIR
+--waldir=WALDIR location for the write-ahead log directory
+-X=none|fetch|stream  include required WAL files with specfied method
+-z compress tar output
+-Z compress in a specfic method
+
+
+****Steps
+Create a backup User
+CREATE USER bkpadmin with REPLICATION ENCRYPTED PASSWORD 'password'
+GRANT pg_write_server_files TO bkpadmin;
+
+--take back up of the cluster
+pg_basebackup -U bkpadmin -D <Backup path> -P --> P is to show progress
+
+if u want to tar it
+pg_basebackup -U bkpadmin -D <Backup path> -Ft -z -P
+
+if you want to do it from client , u need pgsql client downloaded to do this on client
+pg_basebackup -h <server name> -p <port> -U bkpadmin -D <Backup path> -Ft -z -P
+
+
+if you want to adjust transfer rate
+pg_basebackup -U bkpadmin -D <Backup path> --max-rate=5M -X stream -Ft -z -P
+
+
+
+******** WAL Archiving ********
+Shudtdown Cluster
+Set Wal_Level = Replica or Higher
+Set archive_mode = on
+
+check paras are set good : grep "wal_level" <postgres sql conf file path>
+
+setup archive command :
+	archive_command = 'cp %p /var/lib/postgresql/17/archive/%f'             # command to use to archive a WAL file
+
+Test Archive is working fine : select pg_switch_wal(); --> this command switch our current wal file
+
+make sure postgres have access to the file
+mkdir -p /var/lib/postgresql/17/archive
+chown postgres:postgres /var/lib/postgresql/17/archive
+chmod 700 /var/lib/postgresql/17/archive
+
+
+Check archiver for any errors/status:
+***************
+SELECT * FROM pg_stat_archiver;
+
+
+Query to find pg_stat_archiver + wals per second and whether the archive is still archiving
+***************
+SELECT *,
+    current_setting('archive_mode')::BOOLEAN
+        AND (last_failed_wal IS NULL
+            OR last_failed_wal <= last_archived_wal)
+        AS is_archiving,
+    CAST (archived_count AS NUMERIC)
+        / EXTRACT (EPOCH FROM age(now(), stats_reset))
+        AS current_archived_wals_per_second
+FROM pg_stat_archiver;
+
+
+Reset Archiver Stats:
+***************
+SELECT pg_stat_reset_shared('archiver');
+
+
+How to switch wal files
+***************
+Select pg_switch_wal();
+
+to clean stats
+SELECT pg_stat_reset_shared('archiver');
+
+
+*********** Summerize Wal ************
+Helps with incremental back up, writes changes in summaries
+Contains info about modfied blocks
+
+show summarize_wal;
+
+alter system set summarize_wal = 'on';
+
+select pg_reload_conf();
+
+show summarize_wal;
+
+SELECT * FROM pg_available_wal_summaries() order by start_lsn;
+
+*********** Incremental Backup ************
+take just back up of changes since last backup
+pg_basebackup --incremental=old_manifistfile -D <Location>
+
+
+
+******** Upgrade Postgres ********
+
+*****Pgdumb method ,,
+ pg_dump all ,, shutdown cluster ,,change data directory name as _old
+install new db ,, restore using the pg_dumb all generated file
+
+*****pg_upgrade method
+find the location of data and bin directory
+/var/lib/postgresql/17/main
+/usr/lib/postgresql/17/bin
+
+take a backup of data using pg_basebackup or pg_dumpall
+
+install the new postgresql
+
+go to the bin directory and init the cluster
+
+./pg_ctl -D /var/lib/postgresql/18/main init
+
+checking if it is compataible to upgrade
+
+/usr/lib/postgresql/18/bin/pg_upgrade --old-bindir=/usr/lib/postgresql/17/bin --new-bindir=/usr/lib/postgresql/18/bin --old-datadir=/var/lib/postgresql/17/main --new-datadir=/var/lib/postgresql/18/main --check
+
+it showed checksum is not enabled in 17 so lets enable it
+sudo systemctl stop postgresql
+sudo -u postgres /usr/lib/postgresql/17/bin/pg_checksums -e -D /var/lib/postgresql/17/main
+sudo systemctl start postgresql --> starts cluster again
+
+now it shows some liberaries are missing (pg_cron)
+sudo apt update
+sudo apt install postgresql-18-cron
+
+
+Now the check is good
+
+Now you can take a backup for a safety
+
+pg_dumpall > backup.sql
+
+
+shutdown the DB after ensuring no connections
+sudo systemctl stop postgresql
+
+
+Go to /tmp folder
+
+had to run the command like this since the configuration in debian is in a seprate file
+
+/usr/lib/postgresql/18/bin/pg_upgrade \
+  --old-bindir=/usr/lib/postgresql/17/bin \
+  --new-bindir=/usr/lib/postgresql/18/bin \
+  --old-datadir=/var/lib/postgresql/17/main \
+  --new-datadir=/var/lib/postgresql/18/main \
+  --old-options="-c config_file=/etc/postgresql/17/main/postgresql.conf"
+
+cd /usr/lib/postgresql/18/bin/
+
+sudo pg_createcluster 18 main --datadir=/var/lib/postgresql/18/main
+
+we need to copy the configs carefully from /etc/postgresql/17/main to the new ones ,,, also do the same thing for hba
+
+run 
+/usr/lib/postgresql/18/bin/vacuumdb --all --analyze-in-stages --missing-stats-only
+/usr/lib/postgresql/18/bin/vacuumdb --all --analyze-only
+
+
+
+
+******** Uninstall Postgres ********
+systemctl status postgresql --> check postgres status
+systemctl stop postgresql
+systemctl distable postgresql
+
+
+-- remove service
+rm -f /etc/systemd/system/postgresql.service
+rm -f /usr/lib/systemd/system/postgresql.service
+
+-- reload systemctl to apply changes
+systemctl daemon-reload
+
+dnf remove postgresql17-server
+
+
+remove postgres in /var/lib --> this removes data
+
+<remove postgres username>
+
+
+
+
+
+
+
